@@ -46,7 +46,7 @@
             background-color: #374151;  /* Hellerer Button beim Hover */
         }
         .negative-time {
-            color: red;
+            color: red;  /* Zeit wird rot, wenn sie negativ ist */
         }
     </style>
 </head>
@@ -64,15 +64,15 @@
                 <div>
                     <label for="wochenarbeitszeit" class="form-label">Wochenarbeitszeit:</label>
                     <select id="wochenarbeitszeit" name="wochenarbeitszeit" class="form-select">
-                        <option value="35" {{ "selected" if wochenarbeitszeit == "35" else "" }}>35 Stunden</option>
-                        <option value="40" {{ "selected" if wochenarbeitszeit == "40" else "" }}>40 Stunden</option>
+                        <option value="35" {% if wochenarbeitszeit == '35' %}selected{% endif %}>35 Stunden</option>
+                        <option value="40" {% if wochenarbeitszeit == '40' %}selected{% endif %}>40 Stunden</option>
                     </select>
                 </div>
 
                 <div>
                     <label for="pause" class="form-label">Pausenzeit:</label>
                     <select id="pause" name="pause" class="form-select">
-                        <option value="30" {{ "selected" if pause == "30" else "" }}>30 Minuten</option>
+                        <option value="30" {% if pause == '30' %}selected{% endif %}>30 Minuten</option>
                     </select>
                 </div>
                 
@@ -98,13 +98,21 @@
             <!-- Uhr (Echtzeit) -->
             <div class="mt-6">
                 <h2 class="text-xl font-semibold">Uhr:</h2>
-                <p class="text-2xl font-bold" id="atomuhrzeit">00:00:00</p>
+                <p class="text-2xl font-bold" id="atomuhrzeit"></p>
             </div>
         </div>
     </div>
 
     <script>
-        let countdownTime = 8 * 60 * 60 + 30 * 60;  // 8 hours 30 minutes in seconds
+        let countdownTime = 8 * 60 * 60 + 30 * 60;  // 8 Stunden 30 Minuten in Sekunden
+        let startTime = new Date().getTime();  // Zeitpunkt des Starts
+        let pausedTime = localStorage.getItem('pausedTime');  // Verstrichene Zeit aus dem localStorage
+
+        // Wenn pausiert wurde, die verstrichene Zeit abziehen
+        if (pausedTime) {
+            let now = new Date().getTime();
+            countdownTime -= Math.floor((now - pausedTime) / 1000);  // Zeitdifferenz vom letzten Speichern abziehen
+        }
 
         function updateCountdown() {
             let hours = Math.floor(countdownTime / 3600);
@@ -161,11 +169,23 @@
             input.value = formatted;
         }
 
-        // Starte Countdown und Atom-Uhr beim Laden der Seite
-        window.onload = function() {
-            updateCountdown();
-            updateAtomuhrzeit();
-        };
+        // Event Listener für das Verlassen der Seite oder Wechsel in den Hintergrund
+        window.addEventListener("visibilitychange", function() {
+            if (document.visibilityState === 'hidden') {
+                // Speichere den Zeitpunkt, zu dem die App in den Hintergrund geht
+                localStorage.setItem('pausedTime', new Date().getTime());
+            } else {
+                // Berechne die verstrichene Zeit und setze den Countdown fort
+                let now = new Date().getTime();
+                let pausedTime = localStorage.getItem('pausedTime');
+                if (pausedTime) {
+                    countdownTime -= Math.floor((now - pausedTime) / 1000);  // Zeitdifferenz berechnen
+                }
+            }
+        });
+
+        updateCountdown();
+        updateAtomuhrzeit();
     </script>
 </body>
 </html>
