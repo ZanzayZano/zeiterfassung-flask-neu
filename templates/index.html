@@ -46,7 +46,7 @@
             background-color: #374151;  /* Hellerer Button beim Hover */
         }
         .negative-time {
-            color: red;  /* Zeit wird rot, wenn sie negativ ist */
+            color: red;
         }
     </style>
 </head>
@@ -54,7 +54,7 @@
     <div class="flex items-center justify-center h-screen">
         <div class="tool-container">
             <h1 class="text-3xl font-bold text-center mb-6">Zeiterfassung</h1>
-            <form method="POST" class="space-y-4" onsubmit="saveFormData(); return false;">
+            <form method="POST" class="space-y-4">
                 <div>
                     <label for="kommen" class="form-label">Kommen (hh:mm:ss):</label>
                     <input type="text" id="kommen" name="kommen" maxlength="8" placeholder="hh:mm:ss" oninput="formatTime(this)" 
@@ -64,15 +64,15 @@
                 <div>
                     <label for="wochenarbeitszeit" class="form-label">Wochenarbeitszeit:</label>
                     <select id="wochenarbeitszeit" name="wochenarbeitszeit" class="form-select">
-                        <option value="35">35 Stunden</option>
-                        <option value="40">40 Stunden</option>
+                        <option value="35" {{ "selected" if wochenarbeitszeit == "35" else "" }}>35 Stunden</option>
+                        <option value="40" {{ "selected" if wochenarbeitszeit == "40" else "" }}>40 Stunden</option>
                     </select>
                 </div>
 
                 <div>
                     <label for="pause" class="form-label">Pausenzeit:</label>
                     <select id="pause" name="pause" class="form-select">
-                        <option value="30">30 Minuten</option>
+                        <option value="30" {{ "selected" if pause == "30" else "" }}>30 Minuten</option>
                     </select>
                 </div>
                 
@@ -81,11 +81,13 @@
                 </div>
             </form>
 
-            <div id="results" class="mt-6 space-y-2" style="display: none;">
-                <p class="text-lg"><strong>Kommen:</strong> <span id="kommen-display"></span></p>
-                <p class="text-lg"><strong>Gehen min:</strong> <span id="gehen-min-display"></span></p>
-                <p class="text-lg"><strong>Gehen max:</strong> <span id="gehen-max-display"></span></p>
-            </div>
+            {% if kommen %}
+                <div class="mt-6 space-y-2">
+                    <p class="text-lg"><strong>Kommen:</strong> {{ kommen.time() }}</p>
+                    <p class="text-lg"><strong>Gehen min:</strong> {{ gehen_min.time() }}</p>
+                    <p class="text-lg"><strong>Gehen max:</strong> {{ gehen_max.time() }}</p>
+                </div>
+            {% endif %}
 
             <!-- Live Arbeitszeit (Countdown) -->
             <div class="mt-6">
@@ -96,69 +98,74 @@
             <!-- Uhr (Echtzeit) -->
             <div class="mt-6">
                 <h2 class="text-xl font-semibold">Uhr:</h2>
-                <p class="text-2xl font-bold" id="atomuhrzeit"></p>
+                <p class="text-2xl font-bold" id="atomuhrzeit">00:00:00</p>
             </div>
         </div>
     </div>
 
     <script>
-        let countdownTime = 8 * 60 * 60 + 30 * 60;  // 8 Stunden 30 Minuten in Sekunden
+        let countdownTime = 8 * 60 * 60 + 30 * 60;  // 8 hours 30 minutes in seconds
 
-        // Formulardaten speichern
-        function saveFormData() {
-            const kommen = document.getElementById("kommen").value;
-            const wochenarbeitszeit = document.getElementById("wochenarbeitszeit").value;
-            const pause = document.getElementById("pause").value;
-
-            if (kommen) {
-                // Zeitberechnungen
-                const kommenTime = new Date();
-                const [hours, minutes, seconds] = kommen.split(":").map(Number);
-                kommenTime.setHours(hours, minutes, seconds);
-
-                const arbeiten = (wochenarbeitszeit === "35") ? 7.5 * 60 * 60 : 8.5 * 60 * 60;  // in Sekunden
-                const gehenMinTime = new Date(kommenTime.getTime() + arbeiten * 1000);
-                const gehenMaxTime = new Date(kommenTime.getTime() + (10 * 60 * 60 + 45 * 60) * 1000);
-
-                // Speicherung in localStorage
-                localStorage.setItem("kommen", kommenTime.toLocaleTimeString());
-                localStorage.setItem("gehen_min", gehenMinTime.toLocaleTimeString());
-                localStorage.setItem("gehen_max", gehenMaxTime.toLocaleTimeString());
-
-                // Ergebnisse anzeigen
-                displayResults();
-            }
-        }
-
-        // Ergebnisse anzeigen
-        function displayResults() {
-            const kommenDisplay = localStorage.getItem("kommen");
-            const gehenMinDisplay = localStorage.getItem("gehen_min");
-            const gehenMaxDisplay = localStorage.getItem("gehen_max");
-
-            if (kommenDisplay && gehenMinDisplay && gehenMaxDisplay) {
-                document.getElementById("kommen-display").textContent = kommenDisplay;
-                document.getElementById("gehen-min-display").textContent = gehenMinDisplay;
-                document.getElementById("gehen-max-display").textContent = gehenMaxDisplay;
-                document.getElementById("results").style.display = "block";
-            }
-        }
-
-        // Countdown und Uhr aktualisieren
         function updateCountdown() {
-            // Gleich geblieben...
+            let hours = Math.floor(countdownTime / 3600);
+            let minutes = Math.floor((countdownTime % 3600) / 60);
+            let seconds = countdownTime % 60;
+
+            let formattedTime = 
+                (hours < 10 ? "0" : "") + hours + ":" + 
+                (minutes < 10 ? "0" : "") + minutes + ":" + 
+                (seconds < 10 ? "0" : "") + seconds;
+
+            let liveZeitElement = document.getElementById("live-zeit");
+
+            if (countdownTime < 0) {
+                liveZeitElement.classList.add("negative-time");
+            }
+
+            liveZeitElement.textContent = formattedTime;
+            countdownTime--;
+            setTimeout(updateCountdown, 1000);
         }
 
         function updateAtomuhrzeit() {
-            // Gleich geblieben...
+            let now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            let seconds = now.getSeconds();
+
+            let formattedTime = 
+                (hours < 10 ? "0" : "") + hours + ":" + 
+                (minutes < 10 ? "0" : "") + minutes + ":" + 
+                (seconds < 10 ? "0" : "") + seconds;
+
+            document.getElementById("atomuhrzeit").textContent = formattedTime;
+            setTimeout(updateAtomuhrzeit, 1000);
         }
 
-        // Seite lädt
-        window.addEventListener("load", function() {
-            displayResults();  // Lade und zeige gespeicherte Daten
-        });
+        function formatTime(input) {
+            let value = input.value.replace(/[^0-9]/g, '');
+            let formatted = '';
+            if (value.length >= 2) {
+                formatted += value.substring(0, 2) + ':';
+                if (value.length >= 4) {
+                    formatted += value.substring(2, 4) + ':';
+                    if (value.length > 4) {
+                        formatted += value.substring(4, 6);
+                    }
+                } else {
+                    formatted += value.substring(2);
+                }
+            } else {
+                formatted = value;
+            }
+            input.value = formatted;
+        }
 
-        // Andere Funktionen...
+        // Starte Countdown und Atom-Uhr beim Laden der Seite
+        window.onload = function() {
+            updateCountdown();
+            updateAtomuhrzeit();
+        };
     </script>
 </body>
 </html>
